@@ -16,6 +16,13 @@ from skimage.color import gray2rgb
 pdfPath = r'C:\ISIS\afpds\amacln5.pdf'
 imageName = r'amacln5image'
 
+# class ComparePDF:
+#     def __init__(self,pdfPath1,pdfPath2,pageList_pdf1,pageList_pdf2):
+#         self.pdfPath1=pdfPath1
+#         self.pdfPath2=pdfPath2
+#         self.pageList_pdf1=pageList_pdf1
+#         self.pageList_pdf2=pageList_pdf2
+
 def converPDFtoImage(pdfPath,imagePath,pageNo):
     filename = os.path.basename(pdfPath)
     if(os.path.isfile(pdfPath) and (filename[-4:]!='.pdf') or (filename[-4:]!='.PDF')):
@@ -39,47 +46,89 @@ def drawShape(img,coordinates,color):
     return img
 
 
-def find_difference_in_image(image1_path,image2_path):
-    filename1 = os.path.basename(image1_path)
+def find_difference_in_image(image1_path,image2_path,main_img):
+    #filename1 = os.path.basename(image1_path)
     #if(os.path.isfile(image1_path) and (filename1[-4:]!='.pdf') or (filename[-4:]!='.PDF')):
-    main_image1 = io.imread(image1_path)
-    main_image2 = io.imread(image2_path)
-    print(main_image1)
-    main_image1_gray = rgb2gray(main_image1)
-    main_image2_gray = rgb2gray(main_image2)
+    if(type(image1_path) is np.ndarray):
+        if(len(image1_path.shape)==3):
+            main_image1_gray = rgb2gray(image1_path)
+        elif(len(image1_path.shape)==2):
+            main_image1_gray = image1_path
+        else:
+            print('invalid argument')
+            return
+    else:
+        main_image1 = io.imread(image1_path)
+        main_image1_gray = rgb2gray(main_image1)
+    if(type(image2_path) is np.ndarray):
+        if(len(image2_path.shape)==3):
+            main_image2_gray = rgb2gray(image2_path)
+        elif(len(image2_path.shape)==2):
+            main_image2_gray = image2_path
+        else:
+            print('invalid argument')
+            return
+    else:
+        main_image2 = io.imread(image2_path)
+    # main_image1 = io.imread(image1_path)
+    # main_image2 = io.imread(image2_path)
+    # #print(main_image1)
+    
+        main_image2_gray = rgb2gray(main_image2)
 
     (score,difference) = compare_ssim(main_image1_gray,main_image2_gray,full=True)
+    if(score==1.0):
+        print("Image is same")
+        return
     print(score)
     print(difference)
     difference = (difference*255).astype("uint8")
     thresh = threshold_otsu(difference)
 
     cnts = find_contours(difference,thresh)
-    different_image = main_image1
+    different_image = main_img
     for cnt in cnts:
         different_image = drawShape(different_image,cnt,[255,0,0])
 
     return different_image
 
-def compareImageByCoordinates(image1,image2,coordinates):
+def compareImageByCoordinates(image1,image2,coordinates,main_img):
     if((type(image1) is np.ndarray) and (type(image2) is np.ndarray) and image1.shape==image2.shape):
         if(len(image1.shape)<2 or len(image1.shape)>2):
             print("compareImageByCoordinates function can only work with grayscale image and image shapes should be same")
         else:
             x1,y1,x2,y2,x3,y3,x4,y4 = coordinates
+            print("y3: "+str(y3)+" y1: "+str(y1)+"\n"+"x3: "+str(x3)+" x4: "+str(x4))
+            tx3 = x3
+            tx4 = x4
+            ty3 = y3
+            ty1 = y1
             while(y3<y1):
-                while(x3<x1):
-                    image1[y3][x3]=1
-                    image2[y3][x3]=1
+                x3 = tx3
+                x4 = tx4
+                while(x3<x4):
+                    image1[y3,x3]=1
+                    image2[y3,x3]=1
                     x3+=1
-            y3+=1
-            
+                #print('111')
+                y3+=1
+            print('111')
+            img = find_difference_in_image(image1,image2,main_img)
+            return img
+
     else:
         print("Image should in numpy array and equal in shape")
 
+im1 = io.imread('cimage.jpeg')
+im2 = io.imread('cimage2.jpeg')
+main_img = im1
+im1 = rgb2gray(im1)
+im2 = rgb2gray(im2)
+myimg = compareImageByCoordinates(im1,im2,[377,198,542,195,373,136,533,134],main_img)
             
 
 
-myimg = find_difference_in_image('amacln50_1.jpeg','amacln50_2.jpeg')
-io.imshow(myimg)
-io.show()
+#myimg = find_difference_in_image('amacln50_1.jpeg','amacln50_2.jpeg')
+if(myimg is not None):
+    io.imshow(myimg)
+    io.show()
